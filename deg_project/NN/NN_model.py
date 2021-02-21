@@ -29,14 +29,14 @@ def model_creation_and_fit (train_set_wrapper,  validation_set_wrapper, model_ty
     nodes_names_to_nodes = {}
     train_x, train_y, validation_x, validation_y = None, None, None, None
     inputs = None
-    if (model_type=='linear'):
+    if (model_type=='rate'):
         #unwrap tarin and validation set
         (train_x, train_y) = train_set_wrapper
         (validation_x, validation_y) = validation_set_wrapper
         #create input layer
         nodes_names_to_nodes.update({'input1' : layers.Input(shape=(train_x.shape[1], train_x.shape[2]))}) #layers.Input(shape=(None, train_x.shape[2]))})
         inputs = [nodes_names_to_nodes['input1']]
-    elif (model_type=='multi_task_model_8_points' or model_type=='A_minus_model_8_points' or  model_type=='A_plus_model_8_points'):
+    elif (model_type=='dynamics'):
         #unwrap tarin and validation set
         (train_x_intial, train_x, train_y) = train_set_wrapper
         (validation_x_intial, validation_x, validation_y) = validation_set_wrapper
@@ -50,8 +50,8 @@ def model_creation_and_fit (train_set_wrapper,  validation_set_wrapper, model_ty
     else:
         raise ValueError('invalid model type')
 
-    if (model_type == 'linear'):
-        if(data_type == "A_minus_and_plus"):
+    if (model_type == 'rate'):
+        if(data_type == "-+"):
             output_shape = 2
         else:
             output_shape = 1
@@ -82,12 +82,12 @@ def model_creation_and_fit (train_set_wrapper,  validation_set_wrapper, model_ty
     if(model_params['lr_scheduler'] == True):
        callbacks.append(tf.keras.callbacks.LearningRateScheduler(scheduler))
     if (model_params['tensor_board'] == True):
-        logdir = os.path.join(general_utilies.files_dir+"logs", model_type+model_id_and_timestamp)
+        logdir = os.path.join(general_utilies.files_dir+"logs", model_type+'_'+data_type+'_'+model_id_and_timestamp)
         callbacks.append(tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1))
     if (model_params['early_stooping_patience']>0):
         callbacks.append(tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=model_params['early_stooping_patience'], min_delta=model_params['early_stooping_min_delta'],  verbose=1, restore_best_weights=True))
     if(model_params['model_checkpoint'] == True):
-        dir_path = general_utilies.files_dir+"models_chekpoints/"+model_type+model_id_and_timestamp
+        dir_path = general_utilies.files_dir+"models_chekpoints/"+model_type+'_'+data_type+'_'+model_id_and_timestamp
         Path(dir_path).mkdir(parents=True, exist_ok=True)
         filepath = dir_path+"/"+"saved-model-{epoch:02d}-{val_loss:.2f}.hdf5"
         callbacks.append(tf.keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1))

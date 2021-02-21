@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
@@ -21,7 +22,7 @@ def load_dataset (seq_path,  labels_path_minus, labels_path_plus, lasso_or_RF, f
         max_kmer_length = 8
         min_kmer_length = 1
         
-    if(features_path == None):
+    if(features_path is None):
         allKmers = sequence_utilies.retutnAllKmers(min_kmer_length, max_kmer_length)
         sequences = pd.read_csv(seq_path)["seq"].values.tolist()
         features = sequence_utilies.createFeturesVectorsForAllSeq (allKmers=allKmers, min_kmer_length=min_kmer_length, max_kmer_length=max_kmer_length, sequences=sequences)
@@ -32,8 +33,8 @@ def load_dataset (seq_path,  labels_path_minus, labels_path_plus, lasso_or_RF, f
         if lasso_or_RF=='lasso':
             features = features[:,20:] # take 3-mer to 7-mer if the model is lasso
         
-    labels_minus_df = pd.read_csv(labels_path_minus)
-    labels_plus_df = pd.read_csv(labels_path_plus)
+    labels_minus_df = pd.read_csv(labels_path_minus) if labels_path_minus is not None else None
+    labels_plus_df = pd.read_csv(labels_path_plus) if labels_path_plus is not None else None
 
     return features, labels_minus_df, labels_plus_df
 
@@ -41,8 +42,8 @@ def load_dataset (seq_path,  labels_path_minus, labels_path_plus, lasso_or_RF, f
 def load_dataset_and_split (seq_path,  labels_path_minus, labels_path_plus, model_type , lasso_or_RF,features_path=None, index_for_split=None):
     features, labels_minus_df, labels_plus_df = load_dataset (seq_path,  labels_path_minus, labels_path_plus, lasso_or_RF,features_path)
     
-    train_set_wrapper_minus, test_set_wrapper_minus =  split_to_train_test(features, labels_minus_df, model_type, index_for_split)
-    train_set_wrapper_plus, test_set_wrapper_plus =  split_to_train_test(features, labels_plus_df, model_type, index_for_split)
+    train_set_wrapper_minus, test_set_wrapper_minus =  split_to_train_test(features, labels_minus_df, model_type, index_for_split) if labels_minus_df is not None else (None, None)
+    train_set_wrapper_plus, test_set_wrapper_plus =  split_to_train_test(features, labels_plus_df, model_type, index_for_split) if labels_plus_df is not None else (None, None)
     
     return train_set_wrapper_minus, test_set_wrapper_minus, train_set_wrapper_plus, test_set_wrapper_plus
 
@@ -50,21 +51,21 @@ def load_dataset_and_split (seq_path,  labels_path_minus, labels_path_plus, mode
 def load_validation_seq_dataset (seq_path,  labels_path_minus, labels_path_plus, model_type, lasso_or_RF ,features_path=None):
     features, labels_minus_df, labels_plus_df = load_dataset (seq_path,  labels_path_minus, labels_path_plus, lasso_or_RF,features_path)
     
-    if(model_type == 'model_8_points'):
-        features_minus, labels_minus = add_inital_value_to_features(features, labels_minus_df)
-        features_plus, labels_plus = add_inital_value_to_features(features, labels_plus_df)
-    elif(model_type =='linear'):
-        features_minus, labels_minus = features, evaluation_utilies.compute_LR_slopes(labels_minus_df.iloc[:, 1:].values)
-        features_plus, labels_plus =  features, evaluation_utilies.compute_LR_slopes(labels_plus_df.iloc[:, 1:].values)
+    if(model_type == 'dynamics'):
+        features_minus, labels_minus = add_inital_value_to_features(features, labels_minus_df) if labels_minus_df is not None else (None, None)
+        features_plus, labels_plus = add_inital_value_to_features(features, labels_plus_df) if labels_plus_df is not None else (None, None)
+    elif(model_type =='rate'):
+        features_minus, labels_minus = features, evaluation_utilies.compute_LR_slopes(labels_minus_df.iloc[:, 1:].values) if labels_minus_df is not None else (None, None)
+        features_plus, labels_plus =  features, evaluation_utilies.compute_LR_slopes(labels_plus_df.iloc[:, 1:].values) if labels_plus_df is not None else (None, None)
     else:
         raise ValueError('invalid model_type') 
 
     return (features_minus, labels_minus), (features_plus, labels_plus)
 
 def split_to_train_test(features, labels_df, model_type, index_for_split):
-    if(model_type == 'model_8_points'):
+    if(model_type == 'dynamics'):
         features, labels = add_inital_value_to_features(features, labels_df)
-    elif(model_type == 'linear'):
+    elif(model_type == 'rate'):
         labels = evaluation_utilies.compute_LR_slopes(labels_df.iloc[:, 1:].values)
     else:
         raise ValueError('invalid model_type') 
@@ -96,26 +97,26 @@ def add_inital_value_to_features(features, labels_df):
     return features_with_intial_value, labels
 
 
-def evluate_test_and_validation_seq (model, model_type,  test_set_wrapper, validation_seq_wrapper, compute_mean_and_std=True):
+def evluate_test_and_validation_seq (model, model_type, test_set_wrapper, validation_seq_wrapper, compute_mean_and_std=True):
     results_dict = {}
     print('\033[1m' + "test evaluation" + '\033[0m')
     (test_x, test_y) = test_set_wrapper
     predicted_test =  model.predict(test_x)
 
-    if(model_type == 'linear'):
+    if(model_type == 'rate'):
         results_dict['test'] = evaluation_utilies.slope_test(predicted_test, test_y, compute_mean_and_std)
     else:
         results_dict['test'] = evaluation_utilies.evaluate_model (predicted_test, test_y, compute_mean_and_std)
 
-    print('\033[1m' + "validation_seq evaluation" + '\033[0m')
-    (validation_seq_features, validation_seq_labels) = validation_seq_wrapper
-    predicted_validation_seq =  model.predict(validation_seq_features)
+    if validation_seq_wrapper[0] is not None: 
+        print('\033[1m' + "validation_seq evaluation" + '\033[0m')
+        (validation_seq_features, validation_seq_labels) = validation_seq_wrapper
+        predicted_validation_seq =  model.predict(validation_seq_features)
 
-
-    if(model_type == 'linear'):
-        results_dict['validation_seq'] = evaluation_utilies.slope_test(predicted_validation_seq, validation_seq_labels, compute_mean_and_std)
-    else:
-        results_dict['validation_seq'] = evaluation_utilies.evaluate_model (predicted_validation_seq, validation_seq_labels, compute_mean_and_std)
+        if(model_type == 'rate'):
+            results_dict['validation_seq'] = evaluation_utilies.slope_test(predicted_validation_seq, validation_seq_labels, compute_mean_and_std)
+        else:
+            results_dict['validation_seq'] = evaluation_utilies.evaluate_model (predicted_validation_seq, validation_seq_labels, compute_mean_and_std)
 
     return results_dict
 
@@ -145,33 +146,64 @@ def lasso_model_creation_and_fit (train_set_wrapper):
     return model
 
 
-def train_test_validate_lasso_or_RF_model (seq_path, labels_path_minus, labels_path_plus, validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, features_path=None, index_for_split=None):
-    train_set_wrapper_minus, test_set_wrapper_minus, train_set_wrapper_plus, test_set_wrapper_plus = load_dataset_and_split (seq_path,  labels_path_minus, labels_path_plus, model_type,  lasso_or_RF, features_path, index_for_split=index_for_split)
+def train_test_validate_lasso_or_RF_model (
+    seq_path, labels_path_minus, labels_path_plus, model_type, lasso_or_RF,
+    validate_seq_path=None, validate_labels_path_minus=None, 
+    validate_labels_path_plus=None, features_path=None,
+    index_for_split=None, save_model_path=None):
     
-    validation_seq_wrapper_minus, validation_seq_wrapper_plus = load_validation_seq_dataset (validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, None) 
+    train_set_wrapper_minus, test_set_wrapper_minus, train_set_wrapper_plus, test_set_wrapper_plus = load_dataset_and_split (
+        seq_path,  labels_path_minus, labels_path_plus, model_type,
+        lasso_or_RF, features_path, index_for_split=index_for_split)
     
-    print("##############A-###############")
-    model_minus = train_and_evluate(train_set_wrapper_minus, test_set_wrapper_minus, validation_seq_wrapper_minus, model_type, lasso_or_RF)
+    if validate_seq_path is not None:
+        validation_seq_wrapper_minus, validation_seq_wrapper_plus = load_validation_seq_dataset (validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, None)
+    else:
+        validation_seq_wrapper_minus, validation_seq_wrapper_plus = (None, None), (None, None) #same formation as they will get from load_validation_seq_dataset
     
-    print("##############A+###############")
-    model_plus = train_and_evluate(train_set_wrapper_plus, test_set_wrapper_plus, validation_seq_wrapper_plus, model_type, lasso_or_RF)
+    if train_set_wrapper_minus is not None:
+        print("##############A-###############")
+        model_minus = train_and_evluate(train_set_wrapper_minus, test_set_wrapper_minus, validation_seq_wrapper_minus, model_type, lasso_or_RF)
+        if save_model_path is not None:
+            general_utilies.pickle.dump(model_minus, open(save_model_path+lasso_or_RF+'_'+model_type+'_'+'A_minus'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+".sav", 'wb'))
+    else:
+        model_minus = None
     
+    if train_set_wrapper_plus is not None:
+        print("##############A+###############")
+        model_plus = train_and_evluate(train_set_wrapper_plus, test_set_wrapper_plus, validation_seq_wrapper_plus, model_type, lasso_or_RF)
+        if save_model_path is not None:
+            general_utilies.pickle.dump(model_plus, open(save_model_path+lasso_or_RF+'_'+model_type+'_'+'A_plus'+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+".sav", 'wb'))
+    else:
+        model_plus = None
+        
     return model_minus, test_set_wrapper_minus, validation_seq_wrapper_minus, model_plus, test_set_wrapper_plus, validation_seq_wrapper_plus
 
 
-def evaluate_lasso_or_RF_model (model_A_minus_path, model_A_plus_path, seq_path, labels_path_minus, labels_path_plus, validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, features_path=None, compute_mean_and_std=True, index_for_split=None):
-    _train_set_wrapper_minus, test_set_wrapper_minus, _train_set_wrapper_plus, test_set_wrapper_plus = load_dataset_and_split (seq_path,  labels_path_minus, labels_path_plus, model_type,  lasso_or_RF, features_path, index_for_split=index_for_split)
+def evaluate_lasso_or_RF_model (model_A_minus_path, model_A_plus_path, seq_path, labels_path_minus, labels_path_plus,
+                                model_type, lasso_or_RF, validate_seq_path=None, validate_labels_path_minus=None, validate_labels_path_plus=None,
+                                features_path=None, compute_mean_and_std=True, split=True,  index_for_split=None):
+    if (split):
+        _train_set_wrapper_minus, test_set_wrapper_minus, _train_set_wrapper_plus, test_set_wrapper_plus = load_dataset_and_split (seq_path,  labels_path_minus, labels_path_plus, model_type, lasso_or_RF, features_path, index_for_split=index_for_split)
+    else:
+        #use load_validation_seq_dataset function for not splitting the dataset
+        test_set_wrapper_minus, test_set_wrapper_plus = load_validation_seq_dataset (seq_path, validate_labels_path_minus, labels_path_minus, labels_path_plus, model_type, lasso_or_RF, features_path)
 
-    validation_seq_wrapper_minus, validation_seq_wrapper_plus = load_validation_seq_dataset (validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, None) 
+    if validate_seq_path is not None:
+        validation_seq_wrapper_minus, validation_seq_wrapper_plus = load_validation_seq_dataset (validate_seq_path, validate_labels_path_minus, validate_labels_path_plus, model_type, lasso_or_RF, None)
+    else:
+        validation_seq_wrapper_minus, validation_seq_wrapper_plus = (None, None), (None, None) #same formation as they will get from load_validation_seq_dataset
     
     results = []
-    print("##############A-###############")
-    model = general_utilies.pickle.load(open(model_A_minus_path, 'rb'))
-    results.append(evluate_test_and_validation_seq (model, model_type, test_set_wrapper_minus, validation_seq_wrapper_minus, compute_mean_and_std))
+    if test_set_wrapper_minus is not None:
+        print("##############A-###############")
+        model = general_utilies.pickle.load(open(model_A_minus_path, 'rb'))
+        results.append(evluate_test_and_validation_seq (model, model_type, test_set_wrapper_minus, validation_seq_wrapper_minus, compute_mean_and_std))
     
-    print("##############A+###############")
-    model = general_utilies.pickle.load(open(model_A_plus_path, 'rb'))
-    results.append(evluate_test_and_validation_seq (model, model_type, test_set_wrapper_plus, validation_seq_wrapper_plus, compute_mean_and_std))
+    if test_set_wrapper_plus is not None:
+        print("##############A+###############")
+        model = general_utilies.pickle.load(open(model_A_plus_path, 'rb'))
+        results.append(evluate_test_and_validation_seq (model, model_type, test_set_wrapper_plus, validation_seq_wrapper_plus, compute_mean_and_std))
 
     return results
     

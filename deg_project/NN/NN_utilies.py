@@ -80,7 +80,7 @@ def compute_IG_PWM (model, validate_seq_path, validate_labels_path_minus, valida
     validation_set = NN_load_datasets.load_dataset_model_type (seq_path=validate_seq_path, labels_path_minus=validate_labels_path_minus,
                                                                labels_path_plus=validate_labels_path_plus, model_type=model_type,
                                                                data_type=data_type, split=False)
-    if(model_type == 'A_minus_model_8_points' or model_type == 'A_plus_model_8_points' or model_type == 'multi_task_model_8_points'):
+    if(model_type == 'dynamics'):
         (initial_values_features, one_hot_features, _) = validation_set
     else:
         (one_hot_features, _) = validation_set

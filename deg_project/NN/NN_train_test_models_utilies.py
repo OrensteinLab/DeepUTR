@@ -18,11 +18,11 @@ from deg_project.NN import TF_modisco
 ############################train and test utilitis################################
 def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, compute_mean_and_std=True, only_predict=False, only_evaluate=None):
     #linear model need different treatment 
-    if (model_type == 'linear'):
-        return linear_model_predict_and_evaluate (model, set_wrapper, model_type, data_type, results, compute_mean_and_std=True, only_predict=only_predict, only_evaluate=only_evaluate)
+    if (model_type == 'rate'):
+        return linear_model_predict_and_evaluate (model, set_wrapper, data_type, results, compute_mean_and_std=True, only_predict=only_predict, only_evaluate=only_evaluate)
 
     #predict
-    if(model_type == 'multi_task_model_8_points' or model_type == 'A_minus_model_8_points' or model_type == 'A_plus_model_8_points'):
+    if(model_type == 'dynamics'):
         output_size = 8
         (x_initial, x, y) = set_wrapper
         predicted_test =  model.predict([x, x_initial]) if only_evaluate is None else only_evaluate
@@ -31,7 +31,7 @@ def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, com
         return predicted_test
 
     #evaluate
-    if(model_type == 'multi_task_model_8_points'):
+    if(data_type == '-+'):
         print("A-")
         mertric_results = evaluation_utilies.evaluate_model (predicted_test[:,:output_size], y[:,:output_size], compute_mean_and_std)
         results = results + mertric_results
@@ -40,7 +40,7 @@ def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, com
         results = results + mertric_results
     else:
         mertric_results = evaluation_utilies.evaluate_model (predicted_test, y, compute_mean_and_std)
-        if (data_type=='A_minus'):
+        if (data_type=='-'):
             results = results + mertric_results + [None,None,None]  if compute_mean_and_std else results + mertric_results
         else:
             results = results + [None,None,None] + mertric_results if compute_mean_and_std else results + mertric_results
@@ -48,12 +48,12 @@ def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, com
     return results
 ###################################################################################
 
-def linear_model_predict_and_evaluate (model, set_wrapper, model_type, data_type, results, compute_mean_and_std=True, only_predict=False, only_evaluate=None):
+def linear_model_predict_and_evaluate (model, set_wrapper, data_type, results, compute_mean_and_std=True, only_predict=False, only_evaluate=None):
     (x, y) = set_wrapper
     predicted =  model.predict(x) if only_evaluate is None else only_evaluate
     if (only_predict):
         return predicted
-    if(data_type == 'A_minus_and_plus'):
+    if(data_type == '-+'):
         print('A-')
         results = results + evaluation_utilies.slope_test(predicted[:,0], y[:,0], compute_mean_and_std)
         print('A+')
@@ -77,8 +77,9 @@ def train_and_evalute (train_set_wrapper, validation_set_wrapper, test_set_wrapp
 
     print('\033[1m' + "test evaluation" + '\033[0m')
     results = predict_and_evaluate(model, test_set_wrapper, model_type, data_type, results)
-    print('\033[1m' + "validation_seq evaluation" + '\033[0m')
-    results = predict_and_evaluate(model, validation_seq_wrapper, model_type, data_type, results)
+    if validation_seq_wrapper is not None:
+        print('\033[1m' + "validation_seq evaluation" + '\033[0m')
+        results = predict_and_evaluate(model, validation_seq_wrapper, model_type, data_type, results)
     
     #save result if requested 
     if(results_df_path is not None):
@@ -89,22 +90,26 @@ def train_and_evalute (train_set_wrapper, validation_set_wrapper, test_set_wrapp
         general_utilies.releaseLock(locked_file_descriptor)
     #save model if requested
     if(save_model_path is not None):
-        model.save(save_model_path+model_type+'_'+model_id_and_timestamp+'.h5')
+        model.save(save_model_path+model_type+'_'+data_type+'_'+model_id_and_timestamp+'.h5')
     
     return model
  ################################################################################### 
 
-def train_test_validate_model_type (seq_path, labels_path_minus, labels_path_plus, validate_seq_path, validate_labels_path_minus, validate_labels_path_plus,
-                                    model_type, data_type, model_id, train_spec=None, layers_spec=None, results_df_path=None, save_model_path=None, index_for_split=None):
+def train_test_validate_model_type (seq_path, labels_path_minus, labels_path_plus, model_type, data_type, model_id,
+                                    validate_seq_path=None, validate_labels_path_minus=None, validate_labels_path_plus=None,
+                                    train_spec=None, layers_spec=None, results_df_path=None, save_model_path=None, index_for_split=None):
 
     train_set_wrapper, validation_set_wrapper, test_set_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=seq_path, labels_path_minus=labels_path_minus,
                                                                                                             labels_path_plus= labels_path_plus, model_type=model_type,
                                                                                                             data_type=data_type, split=True,
                                                                                                             index_for_split=index_for_split)
 
-    validation_seq_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=validate_seq_path, labels_path_minus=validate_labels_path_minus,
-                                                                       labels_path_plus= validate_labels_path_plus, model_type=model_type,
-                                                                       data_type=data_type, split=False)
+    if validate_seq_path is not None :
+        validation_seq_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=validate_seq_path, labels_path_minus=validate_labels_path_minus,
+                                                                        labels_path_plus= validate_labels_path_plus, model_type=model_type,
+                                                                        data_type=data_type, split=False)
+    else:
+        validation_seq_wrapper = None
    
  
     model = train_and_evalute (train_set_wrapper, validation_set_wrapper, test_set_wrapper, validation_seq_wrapper, model_type, data_type, model_id, train_spec, layers_spec,  results_df_path, save_model_path)
@@ -115,19 +120,26 @@ def train_test_validate_model_type (seq_path, labels_path_minus, labels_path_plu
 
 #####################################################################################
 #############################Evaluation model types##################################
-def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_plus, validate_seq_path,
-                         validate_labels_path_minus, validate_labels_path_plus, model_id, model_type, data_type,
+def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_plus, model_id, model_type, data_type,
+                         validate_seq_path=None,validate_labels_path_minus=None, validate_labels_path_plus=None,
                          compute_mean_and_std=True, index_for_split=None, preforme_IG_test=None, preforme_TF_modisco=None,
-                         GPU=True):
+                         GPU=True, split=True):
     if (GPU is not True):
         tf.config.set_visible_devices([], 'GPU')
 
     #load data and evaluate
-    _train_set_wrapper, _validation_set_wrapper, test_set_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=seq_path, labels_path_minus=labels_path_minus, labels_path_plus= labels_path_plus,
-                                                                                                              model_type=model_type, data_type=data_type, split=True, index_for_split=index_for_split)
+    dataset_warpper = NN_load_datasets.load_dataset_model_type (seq_path=seq_path, labels_path_minus=labels_path_minus, labels_path_plus= labels_path_plus,
+                                                                model_type=model_type, data_type=data_type, split=split, index_for_split=index_for_split)
+    if (split):
+        _train_set_wrapper, _validation_set_wrapper, test_set_wrapper = dataset_warpper
+    else:
+        test_set_wrapper = dataset_warpper
 
-    validation_seq_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=validate_seq_path, labels_path_minus=validate_labels_path_minus, labels_path_plus= validate_labels_path_plus,
-                                                                       model_type=model_type, data_type=data_type, split=False)
+    if validate_seq_path is not None:
+        validation_seq_wrapper = NN_load_datasets.load_dataset_model_type (seq_path=validate_seq_path, labels_path_minus=validate_labels_path_minus, labels_path_plus= validate_labels_path_plus,
+                                                                        model_type=model_type, data_type=data_type, split=False)
+    else:
+        validation_seq_wrapper = None
 
     #load model
     if type(model_path) is list:
@@ -139,18 +151,22 @@ def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_pl
     for i in range(model_num):
         predicted = predict_and_evaluate(model_list[i], test_set_wrapper, model_type, data_type, [], compute_mean_and_std, only_predict=True)
         test_predicted = predicted if i==0 else test_predicted + predicted
-        predicted = predict_and_evaluate(model_list[i], validation_seq_wrapper, model_type, data_type, [], compute_mean_and_std, only_predict=True)
-        validation_predicted = predicted if i==0 else validation_predicted + predicted
+        if validation_seq_wrapper is not None:
+            predicted = predict_and_evaluate(model_list[i], validation_seq_wrapper, model_type, data_type, [], compute_mean_and_std, only_predict=True)
+            validation_predicted = predicted if i==0 else validation_predicted + predicted
+
+    results_dict = {}
 
     test_predicted = test_predicted/model_num
-    validation_predicted = validation_predicted/model_num
-    results_dict = {}
     print('\033[1m' + "test evaluation" + '\033[0m')
     results_dict['test'] = predict_and_evaluate(None, test_set_wrapper, model_type, data_type, [], compute_mean_and_std, only_evaluate=test_predicted)
     print(results_dict['test'])
-    print('\033[1m' + "validation evaluation" + '\033[0m')
-    results_dict['validation_seq'] = predict_and_evaluate(None, validation_seq_wrapper, model_type, data_type, [], compute_mean_and_std, only_evaluate=validation_predicted)
-    print(results_dict['validation_seq'])
+    
+    if validation_seq_wrapper is not None:
+        validation_predicted = validation_predicted/model_num
+        print('\033[1m' + "validation evaluation" + '\033[0m')
+        results_dict['validation_seq'] = predict_and_evaluate(None, validation_seq_wrapper, model_type, data_type, [], compute_mean_and_std, only_evaluate=validation_predicted)
+        print(results_dict['validation_seq'])
 
 
     if(preforme_IG_test is not None):
@@ -227,7 +243,7 @@ def evaluate_RESA_with_linear_model (model_path, data_type, padding=False, aggre
         model_paths = [model_path]
 
     num_of_models = len(model_paths)
-    num_of_outputs = 2 if data_type == 'A_minus_and_plus' else 1
+    num_of_outputs = 2 if data_type == '-+' else 1
     for j in range(num_of_models):
         #load model
         model = tf.keras.models.load_model(model_paths[j], custom_objects={'tf_pearson': NN_utilies.tf_pearson})

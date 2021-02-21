@@ -17,3 +17,5 @@ deg_project/general/__pycache__/__init__.cpython-36.pyc
 deg_project/__pycache__/__init__.cpython-36.pyc
 .vscode/settings.json
 deg_project/test.py
+deg_project/__init__.pyc
+deg_project/general/__init__.pyc
