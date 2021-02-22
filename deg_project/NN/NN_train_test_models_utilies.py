@@ -2,6 +2,7 @@ import tensorflow as tf
 import datetime
 import numpy as np
 from scipy import stats
+from pathlib import Path
 
 from deg_project.NN import NN_load_datasets
 from deg_project.NN import NN_model
@@ -24,7 +25,10 @@ def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, com
     #predict
     if(model_type == 'dynamics'):
         output_size = 8
-        (x_initial, x, y) = set_wrapper
+        if(len(set_wrapper)==3):
+            (x_initial, x, y) = set_wrapper
+        else:
+            (x_initial, x) = set_wrapper
         predicted_test =  model.predict([x, x_initial]) if only_evaluate is None else only_evaluate
     
     if (only_predict):
@@ -49,7 +53,10 @@ def predict_and_evaluate(model, set_wrapper, model_type, data_type, results, com
 ###################################################################################
 
 def linear_model_predict_and_evaluate (model, set_wrapper, data_type, results, compute_mean_and_std=True, only_predict=False, only_evaluate=None):
-    (x, y) = set_wrapper
+    if (type(set_wrapper) is tuple):
+        (x, y) = set_wrapper
+    else:
+        x = set_wrapper
     predicted =  model.predict(x) if only_evaluate is None else only_evaluate
     if (only_predict):
         return predicted
@@ -123,13 +130,14 @@ def train_test_validate_model_type (seq_path, labels_path_minus, labels_path_plu
 def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_plus, model_id, model_type, data_type,
                          validate_seq_path=None,validate_labels_path_minus=None, validate_labels_path_plus=None,
                          compute_mean_and_std=True, index_for_split=None, preforme_IG_test=None, preforme_TF_modisco=None,
-                         GPU=True, split=True):
+                         GPU=True, only_predict=False, split=True, output_path=None):
     if (GPU is not True):
         tf.config.set_visible_devices([], 'GPU')
 
     #load data and evaluate
     dataset_warpper = NN_load_datasets.load_dataset_model_type (seq_path=seq_path, labels_path_minus=labels_path_minus, labels_path_plus= labels_path_plus,
-                                                                model_type=model_type, data_type=data_type, split=split, index_for_split=index_for_split)
+                                                                model_type=model_type, data_type=data_type, only_predict=only_predict ,split=split,
+                                                                index_for_split=index_for_split)
     if (split):
         _train_set_wrapper, _validation_set_wrapper, test_set_wrapper = dataset_warpper
     else:
@@ -155,9 +163,14 @@ def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_pl
             predicted = predict_and_evaluate(model_list[i], validation_seq_wrapper, model_type, data_type, [], compute_mean_and_std, only_predict=True)
             validation_predicted = predicted if i==0 else validation_predicted + predicted
 
-    results_dict = {}
-
     test_predicted = test_predicted/model_num
+    if (only_predict):
+        Path(output_path).mkdir(parents=True, exist_ok=True) #create directory if not exists
+        np.savetxt(output_path+'predictions_'+model_id+'_'+model_type+'_'+data_type+'.csv', test_predicted, delimiter=",")
+        return
+
+    results_dict = {}
+    
     print('\033[1m' + "test evaluation" + '\033[0m')
     results_dict['test'] = predict_and_evaluate(None, test_set_wrapper, model_type, data_type, [], compute_mean_and_std, only_evaluate=test_predicted)
     print(results_dict['test'])
@@ -179,7 +192,6 @@ def evaluate_model_type (model_path, seq_path, labels_path_minus, labels_path_pl
 
     return results_dict
 #####################################################################################
-
 def evaluate_IG_test (model_path, validate_seq_path,validate_labels_path_minus,
                       validate_labels_path_plus, model_id,  model_type, data_type,
                       preforme_IG_test):
