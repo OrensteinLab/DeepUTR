@@ -93,7 +93,7 @@ optional arguments:
 
 # Requirements:
 The code was tested with:\
-Python interpreter == 3.6.6
+Python interpreter == 3.6.6\
 Python packages required for using DeepUTR:\
    numpy == 1.18.5\
    pandas == 1.1.2\
