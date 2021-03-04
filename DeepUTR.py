@@ -5,7 +5,7 @@ from deg_project.NN import NN_train_test_models_utilies
 from deg_project.lasso_RF import RF_and_lasso_train_test_models_utilies
 
 def parser_func():
-    parser = argparse.ArgumentParser(description="DeepUTR - train, predict, or evaluate. Note: folder path must add with '/'")
+    parser = argparse.ArgumentParser(description="DeepUTR - train, predict, or evaluate. Note: folder path must end with '/'")
     parser.add_argument('--train', type=int, default=0,
                         help="Perform model type training. Options: '0' (default) - do not perform training. '1' - perform training.")
     parser.add_argument('--predict', type=int, default=0,
@@ -18,7 +18,7 @@ def parser_func():
     parser.add_argument('--NN_type', type=str, default='CNN',
                         help="Neural network architecture. Options: 'CNN' (default) - CNN architecture. 'RNN' - RNN architecture.")
     parser.add_argument('--data_type', type=str, default="minus",
-                        help="Input 3'UTR sequences data type. Options: 'ninus' (default) - non-tailed with poly(A). 'plus' - tailed with poly(A). 'minus_plus' - both non-tailed and tailed with poly(A); for multi-task models.")
+                        help="Input 3'UTR sequences data type. Options: 'minus' (default) - non-tailed with poly(A). 'plus' - tailed with poly(A). 'minus_plus' - both non-tailed and tailed with poly(A); for multi-task models.")
     parser.add_argument('--conventional_model', type=str, default='false',
                         help="Conventional model type. Conventional models must be created and trained before used. If a conventional model is used, then 'NN_type' is ignored and 'data_type' can not support '-+' input. options: 'false' (default) - do not use conventional model. 'lasso' - Lasso model. 'RF' - Random Forest model.")
 
