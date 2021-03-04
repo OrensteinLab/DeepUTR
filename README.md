@@ -99,13 +99,13 @@ Python packages required for using DeepUTR:\
    pandas == 1.1.2\
    scikit-learn == 0.23.0\
    scipy == 1.4.1\
-   tensorflow == 2.3.0\
+   tensorflow == 2.3.0
 
 Python packages required for running integrated gradient and TF-MoDISco analysis:\
    modisco==0.5.9.0\
    logomaker==0.8\
    tqdm==4.46.1\
-   zipp==3.1.0\
+   zipp==3.1.0
 
 Note: There might be other packages needed. Please contact us in case of any problem.
 
