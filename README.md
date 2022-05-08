@@ -1,5 +1,5 @@
 # DeepUTR
-```
+
 Motivation
 
 messenger RNA (mRNA) degradation plays critical roles in post-transcriptional gene regulation. A major component of mRNA degradation is determined by 3′-UTR elements. Hence, researchers are interested in studying mRNA dynamics as a function of 3′-UTR elements. A recent study measured the mRNA degradation dynamics of tens of thousands of 3′-UTR sequences using a massively parallel reporter assay. However, the computational approach used to model mRNA degradation was based on a simplifying assumption of a linear degradation rate. Consequently, the underlying mechanism of 3′-UTR elements is still not fully understood.
@@ -7,7 +7,7 @@ messenger RNA (mRNA) degradation plays critical roles in post-transcriptional ge
 Results
 
 Here, we developed deep neural networks to predict mRNA degradation dynamics and interpreted the networks to identify regulatory elements in the 3′-UTR and their positional effect. Given an input of a 110 nt-long 3′-UTR sequence and an initial mRNA level, the model predicts mRNA levels of eight consecutive time points. Our deep neural networks significantly improved prediction performance of mRNA degradation dynamics compared with extant methods for the task. Moreover, we demonstrated that models predicting the dynamics of two identical 3′-UTR sequences, differing by their poly(A) tail, performed better than single-task models. On the interpretability front, by using Integrated Gradients, our convolutional neural networks (CNNs) models identified known and novel cis-regulatory sequence elements of mRNA degradation. By applying a novel systematic evaluation of model interpretability, we demonstrated that the recurrent neural network models are inferior to the CNN models in terms of interpretability and that random initialization ensemble improves both prediction and interoperability performance. Moreover, using a mutagenesis analysis, we newly discovered the positional effect of various 3′-UTR elements.
-```
+
 
 # Usage
 ```
